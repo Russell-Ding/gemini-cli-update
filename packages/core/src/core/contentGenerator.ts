@@ -178,7 +178,7 @@ export async function createContentGenerator(
       ? AnthropicModelSelector.parseModelFromString(config.anthropicModel)
       : getAnthropicModelFromEnv();
 
-    const anthropicGenerator = new AnthropicContentGenerator(region, defaultModel);
+    const anthropicGenerator = new AnthropicContentGenerator(region, defaultModel, config.proxy);
     return new LoggingContentGenerator(anthropicGenerator, gcConfig);
   }
 

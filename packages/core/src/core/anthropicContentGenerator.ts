@@ -10,6 +10,8 @@ import {
   InvokeModelWithResponseStreamCommand,
 } from '@aws-sdk/client-bedrock-runtime';
 import { fromEnv } from '@aws-sdk/credential-providers';
+import { HttpsProxyAgent } from 'https-proxy-agent';
+import { HttpProxyAgent } from 'http-proxy-agent';
 import type {
   Content,
   CountTokensParameters,
@@ -102,13 +104,57 @@ export class AnthropicContentGenerator implements ContentGenerator {
 
   constructor(
     region: string = 'us-east-1',
-    defaultModel: AnthropicModel = AnthropicModel.CLAUDE_3_5_SONNET
+    defaultModel: AnthropicModel = AnthropicModel.CLAUDE_3_5_SONNET,
+    proxyUrl?: string
   ) {
-    this.bedrockClient = new BedrockRuntimeClient({
+    const clientConfig: any = {
       region,
       credentials: fromEnv(),
-    });
+    };
+
+    // Configure proxy if provided
+    if (proxyUrl) {
+      const agent = this.createProxyAgent(proxyUrl);
+      if (agent) {
+        clientConfig.requestHandler = {
+          httpAgent: agent,
+          httpsAgent: agent,
+        };
+      }
+    } else {
+      // Check environment variables for proxy
+      const envProxy = process.env['HTTPS_PROXY'] ||
+                      process.env['https_proxy'] ||
+                      process.env['HTTP_PROXY'] ||
+                      process.env['http_proxy'];
+      if (envProxy) {
+        const agent = this.createProxyAgent(envProxy);
+        if (agent) {
+          clientConfig.requestHandler = {
+            httpAgent: agent,
+            httpsAgent: agent,
+          };
+        }
+      }
+    }
+
+    this.bedrockClient = new BedrockRuntimeClient(clientConfig);
     this.defaultModel = defaultModel;
+  }
+
+  private createProxyAgent(proxyUrl: string): HttpsProxyAgent | HttpProxyAgent | null {
+    try {
+      const url = new URL(proxyUrl);
+      if (url.protocol === 'https:') {
+        return new HttpsProxyAgent(proxyUrl);
+      } else if (url.protocol === 'http:') {
+        return new HttpProxyAgent(proxyUrl);
+      }
+      return null;
+    } catch (error) {
+      console.warn('Invalid proxy URL:', proxyUrl);
+      return null;
+    }
   }
 
   async generateContent(

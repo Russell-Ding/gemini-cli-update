@@ -18,6 +18,7 @@ import type {
   OutputFormat,
 } from '@google/gemini-cli-core';
 import { extensionsCommand } from '../commands/extensions.js';
+import { anthropicCommand, proxySetupCommand } from '../commands/cli-commands.js';
 import {
   Config,
   loadServerHierarchicalMemory,
@@ -326,6 +327,10 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
     yargsInstance.command(extensionsCommand);
   }
 
+  // Register Anthropic and Proxy Setup commands
+  yargsInstance.command(anthropicCommand);
+  yargsInstance.command(proxySetupCommand);
+
   yargsInstance
     .version(await getCliVersion()) // This will enable the --version flag based on package.json
     .alias('v', 'version')
@@ -337,13 +342,14 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
   yargsInstance.wrap(yargsInstance.terminalWidth());
   const result = await yargsInstance.parse();
 
-  // Handle case where MCP subcommands are executed - they should exit the process
+  // Handle case where subcommands are executed - they should exit the process
   // and not return to main CLI logic
   if (
     result._.length > 0 &&
-    (result._[0] === 'mcp' || result._[0] === 'extensions')
+    (result._[0] === 'mcp' || result._[0] === 'extensions' ||
+     result._[0] === 'anthropic' || result._[0] === 'proxy-setup')
   ) {
-    // MCP commands handle their own execution and process exit
+    // These commands handle their own execution and process exit
     process.exit(0);
   }
 
